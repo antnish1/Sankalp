@@ -31,9 +31,13 @@ The migration adds indexes for high-traffic lookups:
 - `claims.current_status`
 - Supporting foreign-key indexes for claim documents, tasks, notifications, and audit logs.
 
+## Auth profile creation
+
+The migration creates an `auth.users` trigger that inserts a matching `profiles` row when a Supabase Auth user is created. The role is read from Auth metadata when available and defaults to `customer`.
+
 ## Row Level Security
 
-RLS is enabled on all application tables. Policies separate internal operations roles from customer read/upload use cases.
+RLS is enabled on all application tables. Policies are scoped to authenticated users and separate internal operations roles from customer read/upload use cases.
 
 Internal operations roles are:
 

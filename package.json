@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "npm --workspace apps/web-portal run dev",
     "build": "npm --workspace apps/web-portal run build",
-    "lint": "npm --workspace apps/web-portal run lint"
+    "lint": "npm --workspace apps/web-portal run lint",
+    "typecheck": "npm --workspace apps/web-portal run typecheck"
   },
   "engines": {
     "node": ">=20.0.0"

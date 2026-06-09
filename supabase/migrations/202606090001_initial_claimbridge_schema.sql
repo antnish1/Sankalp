@@ -43,14 +43,52 @@ begin
 end;
 $$;
 
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  role public.app_role not null default 'customer',
+  full_name text not null,
+  phone text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, role, full_name, phone)
+  values (
+    new.id,
+    coalesce(nullif(new.raw_app_meta_data ->> 'app_role', ''), nullif(new.raw_user_meta_data ->> 'app_role', ''), 'customer')::public.app_role,
+    coalesce(nullif(new.raw_user_meta_data ->> 'full_name', ''), new.email, 'New user'),
+    nullif(new.raw_user_meta_data ->> 'phone', '')
+  )
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
+
 create or replace function public.current_app_role()
 returns public.app_role
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select coalesce(
     nullif(auth.jwt() ->> 'app_role', ''),
+    nullif(auth.jwt() -> 'app_metadata' ->> 'app_role', ''),
     nullif(auth.jwt() -> 'user_metadata' ->> 'app_role', ''),
+    (select role::text from public.profiles where id = auth.uid()),
     'customer'
   )::public.app_role;
 $$;
@@ -71,15 +109,6 @@ as $$
   select public.current_app_role() in ('super_admin', 'admin', 'manager', 'claim_processor', 'field_executive');
 $$;
 
-create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  role public.app_role not null default 'customer',
-  full_name text not null,
-  phone text,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
 
 create table public.customers (
   id uuid primary key default gen_random_uuid(),
@@ -302,40 +331,39 @@ alter table public.surveyors enable row level security;
 alter table public.notifications enable row level security;
 alter table public.audit_logs enable row level security;
 
-create policy "profiles self read or ops" on public.profiles for select using (id = auth.uid() or public.is_operations_role());
-create policy "profiles admin manage" on public.profiles for all using (public.is_admin_role()) with check (public.is_admin_role());
+create policy "profiles self read or ops" on public.profiles for select to authenticated using (id = auth.uid() or public.is_operations_role());
+create policy "profiles admin manage" on public.profiles for all to authenticated using (public.is_admin_role()) with check (public.is_admin_role());
+create policy "customers ops manage" on public.customers for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "customers self read" on public.customers for select to authenticated using (profile_id = auth.uid());
 
-create policy "customers ops manage" on public.customers for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "customers self read" on public.customers for select using (profile_id = auth.uid());
+create policy "vehicles ops manage" on public.vehicles for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "vehicles customer read" on public.vehicles for select to authenticated using (customer_id in (select id from public.customers where profile_id = auth.uid()));
 
-create policy "vehicles ops manage" on public.vehicles for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "vehicles customer read" on public.vehicles for select using (customer_id in (select id from public.customers where profile_id = auth.uid()));
+create policy "policies ops manage" on public.policies for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "policies customer read" on public.policies for select to authenticated using (customer_id in (select id from public.customers where profile_id = auth.uid()));
 
-create policy "policies ops manage" on public.policies for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "policies customer read" on public.policies for select using (customer_id in (select id from public.customers where profile_id = auth.uid()));
+create policy "claims ops manage" on public.claims for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "claims customer read" on public.claims for select to authenticated using (customer_id in (select id from public.customers where profile_id = auth.uid()));
 
-create policy "claims ops manage" on public.claims for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "claims customer read" on public.claims for select using (customer_id in (select id from public.customers where profile_id = auth.uid()));
+create policy "claim documents ops manage" on public.claim_documents for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "claim documents customer read" on public.claim_documents for select to authenticated using (customer_id in (select id from public.customers where profile_id = auth.uid()));
+create policy "claim documents customer upload metadata" on public.claim_documents for insert to authenticated with check (customer_id in (select id from public.customers where profile_id = auth.uid()));
 
-create policy "claim documents ops manage" on public.claim_documents for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "claim documents customer read" on public.claim_documents for select using (customer_id in (select id from public.customers where profile_id = auth.uid()));
-create policy "claim documents customer upload" on public.claim_documents for insert with check (customer_id in (select id from public.customers where profile_id = auth.uid()));
+create policy "claim history ops manage" on public.claim_status_history for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "claim history customer read" on public.claim_status_history for select to authenticated using (claim_id in (select id from public.claims where customer_id in (select id from public.customers where profile_id = auth.uid())));
 
-create policy "claim history ops manage" on public.claim_status_history for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "claim history customer read" on public.claim_status_history for select using (claim_id in (select id from public.claims where customer_id in (select id from public.customers where profile_id = auth.uid())));
+create policy "claim tasks ops manage" on public.claim_tasks for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "claim tasks assignee read" on public.claim_tasks for select to authenticated using (assigned_to = auth.uid());
 
-create policy "claim tasks ops manage" on public.claim_tasks for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "claim tasks assignee read" on public.claim_tasks for select using (assigned_to = auth.uid());
+create policy "insurance companies ops manage" on public.insurance_companies for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "garages ops manage" on public.garages for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "surveyors ops manage" on public.surveyors for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
 
-create policy "insurance companies ops manage" on public.insurance_companies for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "garages ops manage" on public.garages for all using (public.is_operations_role()) with check (public.is_operations_role());
-create policy "surveyors ops manage" on public.surveyors for all using (public.is_operations_role()) with check (public.is_operations_role());
+create policy "notifications recipient read" on public.notifications for select to authenticated using (profile_id = auth.uid() or public.is_operations_role());
+create policy "notifications ops manage" on public.notifications for all to authenticated using (public.is_operations_role()) with check (public.is_operations_role());
 
-create policy "notifications recipient read" on public.notifications for select using (profile_id = auth.uid() or public.is_operations_role());
-create policy "notifications ops manage" on public.notifications for all using (public.is_operations_role()) with check (public.is_operations_role());
-
-create policy "audit logs admin read" on public.audit_logs for select using (public.is_admin_role());
-create policy "audit logs ops insert" on public.audit_logs for insert with check (public.is_operations_role());
+create policy "audit logs admin read" on public.audit_logs for select to authenticated using (public.is_admin_role());
+create policy "audit logs ops insert" on public.audit_logs for insert to authenticated with check (public.is_operations_role());
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

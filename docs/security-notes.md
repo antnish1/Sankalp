@@ -9,9 +9,22 @@ The admin portal can use these browser-safe values:
 
 The Supabase `service_role` key bypasses RLS and must never be used in frontend code, committed to Git, or exposed through any `NEXT_PUBLIC_` environment variable. Use it only in trusted server environments such as server-side routes or Supabase Edge Functions.
 
+## Roles and Auth metadata
+
+RLS policies read the application role from the authenticated user. Prefer setting `app_role` in Supabase Auth `app_metadata`; the migration also supports `user_metadata` and the `profiles.role` fallback.
+
+Valid roles are:
+
+- `super_admin`
+- `admin`
+- `manager`
+- `claim_processor`
+- `field_executive`
+- `customer`
+
 ## Row Level Security
 
-All sensitive tables have RLS enabled. Policies use the `app_role` claim or user metadata value from the authenticated Supabase user. Configure roles carefully during user creation and updates.
+All sensitive tables have RLS enabled. Policies are scoped to the `authenticated` database role and separate internal operations roles from customer-owned records.
 
 ## Private claim documents
 
