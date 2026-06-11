@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { updateClaimStatus } from "@/app/actions";
 import { claimStatuses } from "@/components/data";
 import { AppShell, Card, PageHeader } from "@/components/shell";
 import { EmptyState, StatusBadge } from "@/components/ui";
@@ -67,8 +68,11 @@ export default async function ClaimDetailPage({ params }: { params: Promise<{ id
         <div className="space-y-6">
           <Card>
             <h3 className="text-lg font-semibold text-navy-900">Status update</h3>
-            <select className="mt-4 w-full" defaultValue={claim.current_status}>{claimStatuses.map((status) => <option key={status}>{status}</option>)}</select>
-            <button className="mt-4 w-full rounded-xl bg-navy-700 px-4 py-2.5 text-sm font-semibold text-white" type="button">Record status</button>
+            <form action={updateClaimStatus.bind(null, claim.id)} className="mt-4 space-y-3">
+              <select className="w-full" defaultValue={claim.current_status} name="current_status">{claimStatuses.map((status) => <option key={status}>{status}</option>)}</select>
+              <textarea className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" name="notes" placeholder="Optional status note" rows={3} />
+              <button className="w-full rounded-xl bg-navy-700 px-4 py-2.5 text-sm font-semibold text-white" type="submit">Record status</button>
+            </form>
           </Card>
           <Card>
             <h3 className="text-lg font-semibold text-navy-900">Document checklist</h3>

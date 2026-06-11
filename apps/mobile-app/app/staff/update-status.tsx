@@ -29,9 +29,14 @@ export default function UpdateStatusScreen() {
     const session = await getCurrentSession();
     if (!session?.user || !claim) return;
     const fromStatus = claim.current_status;
+    if (status === fromStatus) {
+      setMessage('Choose a different status before saving.');
+      return;
+    }
     const { error } = await supabase.from('claims').update({ current_status: status }).eq('id', claim.id);
     if (error) return setMessage('We could not update the claim status. Please try again.');
-    await supabase.from('claim_status_history').insert({ claim_id: claim.id, from_status: fromStatus, to_status: status, notes: notes.trim() || null, changed_by: session.user.id });
+    const historyResult = await supabase.from('claim_status_history').insert({ claim_id: claim.id, from_status: fromStatus, to_status: status, notes: notes.trim() || null, changed_by: session.user.id });
+    if (historyResult.error) return setMessage('Status changed, but the timeline could not be updated. Please contact support.');
     router.replace({ pathname: '/staff/claim-detail', params: { id: claim.id } });
   }
 
@@ -40,12 +45,12 @@ export default function UpdateStatusScreen() {
       <Card>
         {message ? <Message type="error">{message}</Message> : null}
         <Row label="Claim" value={claim?.claim_no} />
-        <TextField label="New status" value={status} onChangeText={(value: string) => setStatus(value as ClaimStatus)} />
+        <Row label="New status" value={status} />
+        {claimStatuses.map((item) => (
+          <Button key={item} label={item} variant={item === status ? 'primary' : 'secondary'} onPress={() => setStatus(item as ClaimStatus)} />
+        ))}
         <TextField label="Notes" value={notes} onChangeText={setNotes} multiline />
         <Button label="Save status" onPress={save} />
-      </Card>
-      <Card>
-        <Row label="Available statuses" value={claimStatuses.join(', ')} />
       </Card>
     </Screen>
   );

@@ -62,6 +62,30 @@ export async function getCustomerForUser(userId: string): Promise<Customer | nul
   return data;
 }
 
+export async function ensureCustomerForUser(user: User): Promise<Customer | null> {
+  const existing = await getCustomerForUser(user.id);
+  if (existing) return existing;
+
+  const profile = await getProfile(user.id);
+  if (!isValidProfile(profile) || profile.role !== 'customer') return null;
+
+  const fallbackName = profile.full_name && profile.full_name !== 'New user' ? profile.full_name : 'Customer';
+  const { data, error } = await supabase
+    .from('customers')
+    .insert({
+      profile_id: user.id,
+      customer_code: `CUST-${Date.now()}`,
+      contact_name: fallbackName,
+      phone: profile.phone ?? '',
+      email: user.email ?? null,
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;

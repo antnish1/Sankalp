@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { Button, Card, Message, Row, Screen, TextField } from '@/components/ui';
-import { getCurrentSession, getCustomerForUser, makeClaimNumber } from '@/lib/auth';
+import { ensureCustomerForUser, getCurrentSession, getCustomerForUser, makeClaimNumber } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import type { Policy, Vehicle } from '@/lib/types';
 
@@ -37,15 +37,20 @@ export default function ReportAccidentScreen() {
 
   async function submit() {
     setMessage('');
-    const session = await getCurrentSession();
-    if (!session?.user) return router.replace('/login');
-    const customer = await getCustomerForUser(session.user.id);
-    const vehicle = vehicles.find((item) => item.vehicle_no.toLowerCase() === vehicleNo.trim().toLowerCase());
-    const policy = policies.find((item) => item.policy_no.toLowerCase() === policyNo.trim().toLowerCase());
-    if (!customer || !vehicle || !policy) return setMessage('Please enter a matching vehicle and policy.');
-    const { error } = await supabase.from('claims').insert({ claim_no: makeClaimNumber(), customer_id: customer.id, vehicle_id: vehicle.id, policy_id: policy.id, insurance_company_id: policy.insurance_company_id, current_status: 'Accident Reported', accident_at: accidentAt ? new Date(accidentAt).toISOString() : new Date().toISOString(), accident_location: location.trim(), accident_description: description.trim(), estimated_loss: loss ? Number(loss) : null, created_by: session.user.id });
-    if (error) setMessage('We could not submit the accident report. Please try again.');
-    else router.replace('/customer/claims');
+    try {
+      const session = await getCurrentSession();
+      if (!session?.user) return router.replace('/login');
+      const customer = await ensureCustomerForUser(session.user);
+      const vehicle = vehicles.find((item) => item.vehicle_no.toLowerCase() === vehicleNo.trim().toLowerCase());
+      const policy = policies.find((item) => item.policy_no.toLowerCase() === policyNo.trim().toLowerCase());
+      if (!customer) return setMessage('Your customer profile is not linked yet. Please contact support to complete setup.');
+      if (!vehicle || !policy) return setMessage('Please enter a matching vehicle and policy from your account.');
+      const { error } = await supabase.from('claims').insert({ claim_no: makeClaimNumber(), customer_id: customer.id, vehicle_id: vehicle.id, policy_id: policy.id, insurance_company_id: policy.insurance_company_id, current_status: 'Accident Reported', accident_at: accidentAt ? new Date(accidentAt).toISOString() : new Date().toISOString(), accident_location: location.trim(), accident_description: description.trim(), estimated_loss: loss ? Number(loss) : null, created_by: session.user.id });
+      if (error) setMessage('We could not submit the accident report. Please try again.');
+      else router.replace('/customer/claims');
+    } catch {
+      setMessage('We could not submit the accident report. Please try again.');
+    }
   }
 
   return (

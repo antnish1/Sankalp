@@ -1,6 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { claimStatuses } from "@/components/data";
 import { createServerSupabaseClient, getServerAccessToken, getAuthenticatedProfile } from "@/lib/auth-server";
 
 function textValue(formData: FormData, name: string) {
@@ -243,4 +245,55 @@ export async function updatePolicy(id: string, formData: FormData) {
   }
 
   redirect("/policies");
+}
+
+export async function updateClaimStatus(id: string, formData: FormData) {
+  const supabase = await createServerSupabaseClient();
+  const changedBy = await currentProfileId();
+  const nextStatus = textValue(formData, "current_status");
+  const notes = textValue(formData, "notes");
+
+  if (!nextStatus || !claimStatuses.includes(nextStatus as (typeof claimStatuses)[number])) {
+    throw new Error("Choose a valid claim status.");
+  }
+
+  const { data: claim, error: claimError } = await supabase
+    .from("claims")
+    .select("id, current_status")
+    .eq("id", id)
+    .maybeSingle<{ id: string; current_status: (typeof claimStatuses)[number] }>();
+
+  if (claimError || !claim) {
+    throw new Error(claimError?.message ?? "Claim not found.");
+  }
+
+  if (claim.current_status === nextStatus) {
+    revalidatePath(`/claims/${id}`);
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("claims")
+    .update({ current_status: nextStatus })
+    .eq("id", id);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  const { error: historyError } = await supabase.from("claim_status_history").insert({
+    claim_id: id,
+    from_status: claim.current_status,
+    to_status: nextStatus,
+    notes,
+    changed_by: changedBy
+  });
+
+  if (historyError) {
+    throw new Error(historyError.message);
+  }
+
+  revalidatePath(`/claims/${id}`);
+  revalidatePath("/claims");
+  revalidatePath("/timeline");
 }

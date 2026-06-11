@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Linking } from 'react-native';
 
 import { Button, Card, EmptyState, LoadingState, Message, Row, Screen, TextField } from '@/components/ui';
 import { getCurrentSession } from '@/lib/auth';
@@ -26,6 +27,16 @@ export default function DocumentsScreen() {
     else void load();
   }
 
+  async function openDocument(document: ClaimDocument) {
+    setMessage('');
+    const { data, error } = await supabase.storage.from(document.storage_bucket).createSignedUrl(document.storage_path, 300);
+    if (error || !data?.signedUrl) {
+      setMessage('We could not open this document.');
+      return;
+    }
+    await Linking.openURL(data.signedUrl);
+  }
+
   if (loading) return <Screen title="Document Review"><LoadingState /></Screen>;
 
   return (
@@ -37,6 +48,7 @@ export default function DocumentsScreen() {
           <Row label="Document" value={document.file_name} />
           <Row label="Type" value={document.document_type} />
           <Row label="Status" value={document.verification_status} />
+          <Button label="Open document" variant="secondary" onPress={() => void openDocument(document)} />
           <Button label="Mark verified" onPress={() => void review(document, 'verified')} />
           <Button label="Mark rejected" variant="danger" onPress={() => void review(document, 'rejected')} />
         </Card>

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { Button, Card, Message, Row, Screen, TextField } from '@/components/ui';
-import { getCurrentSession, getCustomerForUser } from '@/lib/auth';
+import { ensureCustomerForUser, getCurrentSession, getCustomerForUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import type { Claim } from '@/lib/types';
 
@@ -51,23 +51,28 @@ export default function UploadDocumentsScreen() {
   async function upload() {
     setMessage('');
     setSuccess('');
-    const session = await getCurrentSession();
-    if (!session?.user) return router.replace('/login');
-    const customer = await getCustomerForUser(session.user.id);
-    const claim = claims.find((item) => item.claim_no.toLowerCase() === claimNo.trim().toLowerCase());
-    if (!customer || !claim || !file) return setMessage('Choose a claim and file before uploading.');
+    try {
+      const session = await getCurrentSession();
+      if (!session?.user) return router.replace('/login');
+      const customer = await ensureCustomerForUser(session.user);
+      const claim = claims.find((item) => item.claim_no.toLowerCase() === claimNo.trim().toLowerCase());
+      if (!customer) return setMessage('Your customer profile is not linked yet. Please contact support to complete setup.');
+      if (!claim || !file) return setMessage('Choose one of your claims and select a file before uploading.');
 
-    const extension = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
-    const storagePath = `${customer.id}/${claim.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-    const response = await fetch(file.uri);
-    const body = await response.arrayBuffer();
-    const uploadResult = await supabase.storage.from('claim-documents').upload(storagePath, body, { contentType: file.mimeType ?? 'application/octet-stream', upsert: false });
-    if (uploadResult.error) return setMessage('We could not upload this file. Please try again.');
-    const { error } = await supabase.from('claim_documents').insert({ claim_id: claim.id, customer_id: customer.id, document_type: documentType.trim(), file_name: file.name, storage_bucket: 'claim-documents', storage_path: storagePath, mime_type: file.mimeType, file_size: file.size, uploaded_by: session.user.id });
-    if (error) setMessage('The file uploaded, but the document record could not be saved. Please contact support.');
-    else {
-      setSuccess('Document uploaded successfully.');
-      setFile(null);
+      const extension = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+      const storagePath = `${customer.id}/${claim.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+      const response = await fetch(file.uri);
+      const body = await response.arrayBuffer();
+      const uploadResult = await supabase.storage.from('claim-documents').upload(storagePath, body, { contentType: file.mimeType ?? 'application/octet-stream', upsert: false });
+      if (uploadResult.error) return setMessage('We could not upload this file. Please try again.');
+      const { error } = await supabase.from('claim_documents').insert({ claim_id: claim.id, customer_id: customer.id, document_type: documentType.trim(), file_name: file.name, storage_bucket: 'claim-documents', storage_path: storagePath, mime_type: file.mimeType, file_size: file.size, uploaded_by: session.user.id });
+      if (error) setMessage('The file uploaded, but the document record could not be saved. Please contact support.');
+      else {
+        setSuccess('Document uploaded successfully.');
+        setFile(null);
+      }
+    } catch {
+      setMessage('We could not upload this file. Please try again.');
     }
   }
 

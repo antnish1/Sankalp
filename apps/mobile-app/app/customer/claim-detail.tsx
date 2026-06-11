@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import { Linking } from 'react-native';
 
-import { Card, EmptyState, LoadingState, Row, Screen } from '@/components/ui';
+import { Button, Card, EmptyState, LoadingState, Message, Row, Screen } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import type { Claim, ClaimDocument, ClaimHistory } from '@/lib/types';
 
@@ -10,6 +11,7 @@ export default function ClaimDetailScreen() {
   const [claim, setClaim] = useState<Claim | null>(null);
   const [history, setHistory] = useState<ClaimHistory[]>([]);
   const [documents, setDocuments] = useState<ClaimDocument[]>([]);
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,11 +30,22 @@ export default function ClaimDetailScreen() {
     void load();
   }, [id]);
 
+  async function openDocument(document: ClaimDocument) {
+    setMessage('');
+    const { data, error } = await supabase.storage.from(document.storage_bucket).createSignedUrl(document.storage_path, 300);
+    if (error || !data?.signedUrl) {
+      setMessage('We could not open this document. Please try again.');
+      return;
+    }
+    await Linking.openURL(data.signedUrl);
+  }
+
   if (loading) return <Screen title="Claim Detail"><LoadingState /></Screen>;
   if (!claim) return <Screen title="Claim Detail"><EmptyState title="Claim not found" body="Please go back and choose a claim from your list." /></Screen>;
 
   return (
     <Screen title="Claim Detail" subtitle="Review claim information and status timeline." showLogout>
+      {message ? <Message type="error">{message}</Message> : null}
       <Card>
         <Row label="Claim number" value={claim.claim_no} />
         <Row label="Current status" value={claim.current_status} />
@@ -43,7 +56,12 @@ export default function ClaimDetailScreen() {
       </Card>
       <Card>
         <Row label="Uploaded documents" value={documents.length} />
-        {documents.map((document) => <Row key={document.id} label={document.document_type} value={`${document.file_name} • ${document.verification_status}`} />)}
+        {documents.map((document) => (
+          <Fragment key={document.id}>
+            <Row label={document.document_type} value={`${document.file_name} - ${document.verification_status}`} />
+            <Button label="Open document" variant="secondary" onPress={() => void openDocument(document)} />
+          </Fragment>
+        ))}
       </Card>
       <Card>
         <Row label="Claim Status Timeline" value={history.length ? undefined : 'No timeline updates yet'} />
