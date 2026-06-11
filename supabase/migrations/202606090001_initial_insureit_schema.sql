@@ -64,7 +64,7 @@ begin
   values (
     new.id,
     coalesce(nullif(new.raw_app_meta_data ->> 'app_role', ''), nullif(new.raw_user_meta_data ->> 'app_role', ''), 'customer')::public.app_role,
-    coalesce(nullif(new.raw_user_meta_data ->> 'full_name', ''), new.email, 'New user'),
+    coalesce(nullif(new.raw_user_meta_data ->> 'full_name', ''), 'New user'),
     nullif(new.raw_user_meta_data ->> 'phone', '')
   )
   on conflict (id) do nothing;

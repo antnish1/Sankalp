@@ -35,6 +35,7 @@ export default function StaffDashboardScreen() {
   return (
     <Screen title="Staff Dashboard" subtitle={`Welcome${profile?.full_name ? `, ${profile.full_name}` : ''}.`} showLogout>
       <Card>
+        <Row label="Signed in role" value={profile?.role} />
         <Row label="Open claim records" value={counts.claims} />
         <Row label="Follow-up tasks" value={counts.tasks} />
         <Row label="Documents for review" value={counts.documents} />

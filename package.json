@@ -6,6 +6,12 @@
     "apps/web-portal",
     "apps/mobile-app"
   ],
+  "overrides": {
+    "expo-constants": "18.0.13",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "5.6.2",
+    "react-native-screens": "4.16.0"
+  },
   "scripts": {
     "dev": "npm --workspace apps/web-portal run dev",
     "build": "npm --workspace apps/web-portal run build",

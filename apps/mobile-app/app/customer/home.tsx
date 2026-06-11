@@ -40,6 +40,7 @@ export default function CustomerHomeScreen() {
   return (
     <Screen title="Customer home" subtitle={`Welcome${profile?.full_name ? `, ${profile.full_name}` : ''}.`} showLogout>
       <Card>
+        <Row label="Signed in role" value={profile?.role} />
         <Row label="Customer" value={customer?.contact_name ?? profile?.full_name} />
         <Row label="Vehicles" value={counts.vehicles} />
         <Row label="Policies" value={counts.policies} />
