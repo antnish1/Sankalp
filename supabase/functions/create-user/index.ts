@@ -35,6 +35,17 @@ type CreateUserPayload = {
   department?: string | null;
   designation?: string | null;
   email_confirm?: boolean;
+  customer?: {
+    company_name?: string | null;
+    contact_name?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postal_code?: string | null;
+    assigned_agent_id?: string | null;
+  } | null;
 };
 
 Deno.serve(async (request) => {
@@ -102,15 +113,48 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Password must be at least 6 characters." }, 400);
   }
 
+  let reportingManagerId = nullable(payload?.reporting_manager_id);
+  let designation = nullable(payload?.designation);
+  let department = nullable(payload?.department);
+
+  if (role === "customer") {
+    const assignedAgentId = nullable(payload?.customer?.assigned_agent_id);
+    const contactName = nullable(payload?.customer?.contact_name) ?? fullName;
+    const customerPhone = nullable(payload?.customer?.phone) ?? nullable(payload?.phone);
+
+    if (!assignedAgentId || !contactName || !customerPhone) {
+      return jsonResponse({ error: "Customer name, phone, and assigned agent are required." }, 400);
+    }
+
+    const { data: assignedAgent, error: agentError } = await serviceClient
+      .from("profiles")
+      .select("id, role, is_active")
+      .eq("id", assignedAgentId)
+      .maybeSingle();
+
+    if (agentError) {
+      console.error("create-user assigned agent lookup failed", agentError);
+      return jsonResponse({ error: "Could not verify assigned agent." }, 500);
+    }
+
+    if (!assignedAgent?.is_active || String(assignedAgent.role) !== "agent") {
+      return jsonResponse({ error: "Customer users must be assigned to an active Agent." }, 400);
+    }
+
+    reportingManagerId = assignedAgentId;
+    department = "Customer";
+    designation = "Customer";
+  }
+
   const profilePayload = {
     role,
     full_name: fullName,
     email,
     phone: nullable(payload?.phone),
     employee_code: nullable(payload?.employee_code),
-    reporting_manager_id: nullable(payload?.reporting_manager_id),
-    department: nullable(payload?.department),
-    designation: nullable(payload?.designation),
+    reporting_manager_id: reportingManagerId,
+    department,
+    designation,
     is_active: true,
     created_by: authUser.user.id,
     updated_by: authUser.user.id,
@@ -143,6 +187,32 @@ Deno.serve(async (request) => {
     console.error("create-user profile upsert failed", { profileError, userId: created.user.id, profilePayload });
     await serviceClient.auth.admin.deleteUser(created.user.id);
     return jsonResponse({ error: "Login was created, but profile setup failed. The login was rolled back." }, 500);
+  }
+
+  if (role === "customer") {
+    const customer = payload?.customer;
+    const { error: customerError } = await serviceClient.from("customers").insert({
+      profile_id: created.user.id,
+      customer_code: `CUST-${Date.now()}`,
+      company_name: nullable(customer?.company_name),
+      contact_name: nullable(customer?.contact_name) ?? fullName,
+      phone: nullable(customer?.phone) ?? nullable(payload?.phone),
+      email,
+      address: nullable(customer?.address),
+      city: nullable(customer?.city),
+      state: nullable(customer?.state),
+      postal_code: nullable(customer?.postal_code),
+      assigned_agent_id: reportingManagerId,
+      created_by: authUser.user.id,
+      updated_by: authUser.user.id,
+    });
+
+    if (customerError) {
+      console.error("create-user customer insert failed", { customerError, userId: created.user.id });
+      await serviceClient.from("profiles").delete().eq("id", created.user.id);
+      await serviceClient.auth.admin.deleteUser(created.user.id);
+      return jsonResponse({ error: "Login was created, but customer setup failed. The login was rolled back." }, 500);
+    }
   }
 
   return jsonResponse({

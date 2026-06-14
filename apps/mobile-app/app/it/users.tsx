@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, LoadingState, Message, Screen, TextField } from '@/components/ui';
 import { getCurrentSession, getProfile, isValidProfile, signOut } from '@/lib/auth';
@@ -23,28 +23,55 @@ const emptyForm = {
   designation: '',
 };
 
+const emptyCustomerForm = {
+  full_name: '',
+  email: '',
+  password: '',
+  phone: '',
+  company_name: '',
+  assigned_agent_id: '',
+  address: '',
+  city: '',
+  state: '',
+  postal_code: '',
+};
+
 export default function ItUsersScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
   const [selected, setSelected] = useState<EditableProfile | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [customerForm, setCustomerForm] = useState(emptyCustomerForm);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [openSelect, setOpenSelect] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [savingEmployee, setSavingEmployee] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const managerOptions = useMemo(() => {
     return profiles
-      .filter((item) => item.is_active && item.id !== selected?.id)
+      .filter((item) => item.is_active && item.role !== 'customer' && item.id !== selected?.id)
       .map((item) => ({
         value: item.id,
         label: `${item.full_name} - ${roleLabels[item.role] ?? item.role}${item.employee_code ? ` (${item.employee_code})` : ''}`,
       }));
   }, [profiles, selected?.id]);
 
-  const roleOptions = useMemo(() => appRoles.map((item) => ({ value: item, label: roleLabels[item] })), []);
+  const employeeRoleOptions = useMemo(() => appRoles.filter((item) => item !== 'customer').map((item) => ({ value: item, label: roleLabels[item] })), []);
+
+  const roleFilterOptions = useMemo(() => appRoles.map((item) => ({ value: item, label: roleLabels[item] })), []);
+
+  const agentOptions = useMemo(() => {
+    return profiles
+      .filter((item) => item.is_active && item.role === 'agent')
+      .map((item) => ({
+        value: item.id,
+        label: `${item.full_name}${item.employee_code ? ` (${item.employee_code})` : ''}`,
+      }));
+  }, [profiles]);
 
   const designationSelectOptions = useMemo(() => designationOptions.map((item) => ({ value: item, label: item })), []);
 
@@ -98,11 +125,13 @@ export default function ItUsersScreen() {
   }
 
   async function saveProfile() {
+    if (savingEmployee) return;
     setMessage('');
-    if ((!selected && (!form.email || !form.password)) || !form.full_name || !appRoles.includes(form.role)) {
-      setMessage('Email, password, name, and valid role are required.');
+    if ((!selected && (!form.email || !form.password)) || !form.full_name || !appRoles.includes(form.role) || form.role === 'customer') {
+      setMessage('Email, password, name, and valid employee role are required.');
       return;
     }
+    setSavingEmployee(true);
     try {
       const payload = {
         full_name: form.full_name.trim(),
@@ -139,6 +168,53 @@ export default function ItUsersScreen() {
     } catch (error) {
       console.error('IT profile save failed', { error, form, selected });
       setMessage('We could not save this profile record.');
+    } finally {
+      setSavingEmployee(false);
+    }
+  }
+
+  async function saveCustomer() {
+    if (savingCustomer) return;
+    setMessage('');
+    if (!customerForm.full_name || !customerForm.email || !customerForm.password || !customerForm.phone || !customerForm.assigned_agent_id) {
+      setMessage('Customer name, email, password, phone, and assigned agent are required.');
+      return;
+    }
+    setSavingCustomer(true);
+    try {
+      const { error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: customerForm.email.trim(),
+          password: customerForm.password,
+          full_name: customerForm.full_name.trim(),
+          role: 'customer',
+          phone: nullable(customerForm.phone),
+          reporting_manager_id: nullable(customerForm.assigned_agent_id),
+          department: 'Customer',
+          designation: 'Customer',
+          email_confirm: true,
+          customer: {
+            contact_name: customerForm.full_name.trim(),
+            company_name: nullable(customerForm.company_name),
+            phone: nullable(customerForm.phone),
+            email: customerForm.email.trim(),
+            address: nullable(customerForm.address),
+            city: nullable(customerForm.city),
+            state: nullable(customerForm.state),
+            postal_code: nullable(customerForm.postal_code),
+            assigned_agent_id: nullable(customerForm.assigned_agent_id),
+          },
+        },
+      });
+      if (error) throw error;
+      setMessage('Customer user created and linked to the selected agent.');
+      setCustomerForm(emptyCustomerForm);
+      await load();
+    } catch (error) {
+      console.error('IT customer save failed', { error, customerForm });
+      setMessage('We could not create this customer user.');
+    } finally {
+      setSavingCustomer(false);
     }
   }
 
@@ -160,8 +236,8 @@ export default function ItUsersScreen() {
     <Screen title="User Management" subtitle="Create, edit, deactivate, and reactivate profiles." showLogout>
       {message ? <Message type={message.includes('could not') ? 'error' : 'success'}>{message}</Message> : null}
       <Card>
-        <Text style={styles.sectionTitle}>{selected ? 'Edit Profile' : 'Create User'}</Text>
-        <Text style={styles.helpText}>{selected ? 'Edit role and reporting hierarchy details.' : 'Create login access and a matching profile.'}</Text>
+        <Text style={styles.sectionTitle}>{selected ? 'Edit Employee Profile' : 'Create Department User'}</Text>
+        <Text style={styles.helpText}>{selected ? 'Edit role and reporting hierarchy details.' : 'Create internal users such as Director, Sales Head, ASM, Sales Manager, Agent, Claims, Admin, or IT.'}</Text>
         {selected ? <TextField label="User ID" value={form.id} onChangeText={(value) => setForm((current) => ({ ...current, id: value }))} editable={false} /> : null}
         <TextField label="Full name" value={form.full_name} onChangeText={(value) => setForm((current) => ({ ...current, full_name: value }))} />
         <TextField label="Email" value={form.email} onChangeText={(value) => setForm((current) => ({ ...current, email: value }))} autoCapitalize="none" />
@@ -172,7 +248,7 @@ export default function ItUsersScreen() {
           id="role"
           label="Role"
           value={form.role}
-          options={roleOptions}
+          options={employeeRoleOptions}
           openSelect={openSelect}
           setOpenSelect={setOpenSelect}
           onChange={(value) => setForm((current) => ({ ...current, role: value as AppRole }))}
@@ -198,10 +274,38 @@ export default function ItUsersScreen() {
           setOpenSelect={setOpenSelect}
           onChange={(value) => setForm((current) => ({ ...current, designation: value }))}
         />
-        <Button label={selected ? 'Save profile' : 'Create user'} onPress={saveProfile} />
-        {selected ? <Button label="Cancel edit" variant="secondary" onPress={() => { setSelected(null); setForm(emptyForm); }} /> : null}
+        {savingEmployee ? <SavingPanel label={selected ? 'Saving employee profile' : 'Creating department user'} /> : null}
+        <Button label={savingEmployee ? 'Processing...' : selected ? 'Save profile' : 'Create department user'} onPress={saveProfile} disabled={savingEmployee || savingCustomer} />
+        {selected ? <Button label="Cancel edit" variant="secondary" onPress={() => { setSelected(null); setForm(emptyForm); }} disabled={savingEmployee} /> : null}
       </Card>
 
+      {!selected ? (
+        <Card>
+          <Text style={styles.sectionTitle}>Add Customer User</Text>
+          <Text style={styles.helpText}>Customer users must be linked below an active Agent. This creates the customer login, customer profile, and agent assignment together.</Text>
+          <TextField label="Customer name" value={customerForm.full_name} onChangeText={(value) => setCustomerForm((current) => ({ ...current, full_name: value }))} />
+          <TextField label="Customer email" value={customerForm.email} onChangeText={(value) => setCustomerForm((current) => ({ ...current, email: value }))} autoCapitalize="none" />
+          <TextField label="Temporary password" value={customerForm.password} onChangeText={(value) => setCustomerForm((current) => ({ ...current, password: value }))} secureTextEntry />
+          <TextField label="Phone" value={customerForm.phone} onChangeText={(value) => setCustomerForm((current) => ({ ...current, phone: value }))} keyboardType="phone-pad" />
+          <TextField label="Company name" value={customerForm.company_name} onChangeText={(value) => setCustomerForm((current) => ({ ...current, company_name: value }))} />
+          <OptionSelect
+            id="assigned_agent"
+            label="Linked agent"
+            value={customerForm.assigned_agent_id}
+            options={agentOptions}
+            placeholder={agentOptions.length ? 'Select agent' : 'No active agents available'}
+            openSelect={openSelect}
+            setOpenSelect={setOpenSelect}
+            onChange={(value) => setCustomerForm((current) => ({ ...current, assigned_agent_id: value }))}
+          />
+          <TextField label="Address" value={customerForm.address} onChangeText={(value) => setCustomerForm((current) => ({ ...current, address: value }))} />
+          <TextField label="City" value={customerForm.city} onChangeText={(value) => setCustomerForm((current) => ({ ...current, city: value }))} />
+          <TextField label="State" value={customerForm.state} onChangeText={(value) => setCustomerForm((current) => ({ ...current, state: value }))} />
+          <TextField label="Postal code" value={customerForm.postal_code} onChangeText={(value) => setCustomerForm((current) => ({ ...current, postal_code: value }))} keyboardType="number-pad" />
+          {savingCustomer ? <SavingPanel label="Creating customer and linking agent" /> : null}
+          <Button label={savingCustomer ? 'Processing...' : 'Create customer user'} onPress={saveCustomer} disabled={savingCustomer || savingEmployee || !agentOptions.length} />
+        </Card>
+      ) : null}
       <Card>
         <Text style={styles.sectionTitle}>Organization Users</Text>
         <TextField label="Search" value={search} onChangeText={setSearch} />
@@ -209,7 +313,7 @@ export default function ItUsersScreen() {
           id="role_filter"
           label="Role filter"
           value={roleFilter}
-          options={roleOptions}
+          options={roleFilterOptions}
           placeholder="All roles"
           openSelect={openSelect}
           setOpenSelect={setOpenSelect}
@@ -243,6 +347,18 @@ function nullable(value: string) {
 function managerName(managerId: string | null, profiles: EditableProfile[]) {
   if (!managerId) return 'None';
   return profiles.find((item) => item.id === managerId)?.full_name ?? 'Linked manager';
+}
+
+function SavingPanel({ label }: { label: string }) {
+  return (
+    <View style={styles.savingPanel}>
+      <ActivityIndicator color="#18A058" />
+      <View style={styles.savingCopy}>
+        <Text style={styles.savingTitle}>{label}</Text>
+        <Text style={styles.savingText}>Please wait while Supabase creates and links the records.</Text>
+      </View>
+    </View>
+  );
 }
 
 function OptionSelect({
@@ -308,6 +424,10 @@ function OptionSelect({
 const styles = StyleSheet.create({
   sectionTitle: { color: '#0B1F3A', fontSize: 18, fontWeight: '900', marginBottom: 6 },
   helpText: { color: '#6B7280', fontSize: 13, lineHeight: 19, marginBottom: 10 },
+  savingPanel: { borderRadius: 14, backgroundColor: '#EAF8F0', borderWidth: 1, borderColor: '#BFEBD0', padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  savingCopy: { flex: 1 },
+  savingTitle: { color: '#067647', fontSize: 14, fontWeight: '900' },
+  savingText: { color: '#367A55', fontSize: 12, lineHeight: 17, marginTop: 2 },
   selectWrap: { marginBottom: 12 },
   selectLabel: { color: '#0B1F3A', fontSize: 14, fontWeight: '700', marginBottom: 6 },
   selectButton: { minHeight: 50, borderRadius: 14, borderWidth: 1, borderColor: '#D8DEE8', backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
