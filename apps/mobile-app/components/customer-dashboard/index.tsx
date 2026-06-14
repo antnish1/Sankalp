@@ -71,7 +71,7 @@ export function AccidentHeroCard({ onPress }: { onPress: () => void }) {
         <View style={styles.heroCopy}>
           <View style={styles.heroLabelPill}>
             <MaterialCommunityIcons name="alert-outline" size={15} color="#FFFFFF" />
-            <Text style={styles.heroLabel}>Quick Response</Text>
+            <Text style={styles.heroLabel}>First Notice</Text>
           </View>
           <Text style={styles.heroTitle}>Report New Accident</Text>
           <View style={styles.heroButton}>
@@ -128,8 +128,8 @@ export function ActiveClaimCard({ claim, onOpen }: { claim: ActiveClaimView | nu
         <View style={styles.emptyState}>
           <MaterialCommunityIcons name="shield-search" size={30} color="#173B68" />
           <View style={styles.emptyCopy}>
-            <Text style={styles.emptyTitle}>No active claim</Text>
-            <Text style={styles.emptyText}>Report a new accident if you need claim assistance.</Text>
+            <Text style={styles.emptyTitle}>Claim queue clear</Text>
+            <Text style={styles.emptyText}>No open FNOL case.</Text>
           </View>
         </View>
       )}
@@ -145,7 +145,7 @@ export function ActionRequiredCard({ required, count, onUpload }: { required: bo
       </View>
       <View style={styles.statusCopy}>
         <Text style={[styles.statusTitle, required ? styles.actionTitle : styles.successTitle]}>{required ? 'Action Required' : 'No action required'}</Text>
-        <Text style={styles.statusText}>{required ? `${count} item${count === 1 ? '' : 's'} need your attention.` : 'Our team will notify you when action is needed.'}</Text>
+        <Text style={styles.statusText}>{required ? `${count} document request${count === 1 ? '' : 's'} open.` : 'No document request is open.'}</Text>
       </View>
       {required ? (
         <AnimatedPressable onPress={onUpload} style={styles.uploadButton}>
@@ -217,7 +217,7 @@ export function PolicyReminderCard({ vehicleNo, expiry, onView }: { vehicleNo?: 
       ) : (
         <>
           <Text style={styles.cardTitle}>Policy reminders</Text>
-          <Text style={styles.emptyText}>No policy renewal action is needed right now.</Text>
+          <Text style={styles.emptyText}>Renewal queue clear.</Text>
         </>
       )}
     </View>
@@ -228,8 +228,8 @@ export function SupportCard({ onSupport }: { onSupport: () => void }) {
   return (
     <View style={styles.supportCard}>
       <View style={styles.supportCopy}>
-        <Text style={styles.supportTitle}>Need Help?</Text>
-        <Text style={styles.supportText}>We are here to assist you.</Text>
+        <Text style={styles.supportTitle}>Claims Desk</Text>
+        <Text style={styles.supportText}>Callback queue</Text>
       </View>
       <View style={styles.supportActions}>
         <SupportButton label="Call" icon="phone" disabled />

@@ -51,6 +51,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: Promi
   ]);
   const users = data ?? [];
   const managers = managersResult.data ?? [];
+  const employeeRoles = appRoles.filter((item) => item !== "customer");
 
   return (
     <AppShell title="User Management">
@@ -69,7 +70,7 @@ export default async function UsersPage({ searchParams }: { searchParams?: Promi
           <Input name="full_name" label="Full name" required />
           <Input name="phone" label="Phone" />
           <Input name="employee_code" label="Employee code" />
-          <Select name="role" label="Role" options={appRoles.map((item) => [item, roleLabels[item]])} required />
+          <Select name="role" label="Role" options={employeeRoles.map((item) => [item, roleLabels[item]])} required />
           <Select name="reporting_manager_id" label="Reporting manager" options={managers.map((item) => [item.id, `${item.full_name} (${roleLabels[item.role as keyof typeof roleLabels] ?? item.role})`])} />
           <Input name="department" label="Department" />
           <Select name="designation" label="Designation" options={designationOptions.map((item) => [item, item])} />

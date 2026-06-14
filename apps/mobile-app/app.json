@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "scheme": "insureit",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.insureit.mobile",
       "adaptiveIcon": {
@@ -26,7 +28,8 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

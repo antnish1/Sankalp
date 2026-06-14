@@ -24,17 +24,17 @@ export default function SignupScreen() {
       if (data.user && data.session) {
         await routeSignedInUser(data.user, router);
       } else {
-        setMessage('Account created. Please check your email before signing in.');
+        setMessage('Account created. Confirm the email address before signing in.');
       }
     } catch {
-      setError('We could not create your account. Please review the details and try again.');
+      setError('Account setup could not be completed. Review the details and try again.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Screen title="Create account" subtitle="Start tracking your vehicle policy and claim support.">
+    <Screen title="Customer Sign Up" subtitle="Create access for policy and claim support.">
       <Card>
         {error ? <Message type="error">{error}</Message> : null}
         {message ? <Message type="success">{message}</Message> : null}
@@ -44,7 +44,7 @@ export default function SignupScreen() {
         <TextField label="Password" secureTextEntry value={password} onChangeText={setPassword} />
         <Button label={loading ? 'Creating account...' : 'Create account'} disabled={loading} onPress={submit} />
       </Card>
-      <Text style={styles.muted}>Already registered? <Link href="/login" style={styles.rowValue}>Sign in</Link></Text>
+      <Text style={styles.muted}>Already registered <Link href="/login" style={styles.rowValue}>Sign in</Link></Text>
     </Screen>
   );
 }

@@ -116,7 +116,7 @@ export async function signUp(email: string, password: string, fullName: string, 
 }
 
 export async function signOut(router: Router) {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: 'local' });
   router.replace('/login');
 }
 

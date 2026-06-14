@@ -53,16 +53,21 @@ export const roleLabels: Record<AppRole, string> = {
 };
 
 export const designationOptions = [
+  'Super Admin',
+  'Admin',
+  'IT Super User',
+  'Manager',
+  'Claim Processor',
+  'Field Executive',
   'Director',
   'Sales Head',
   'Zonal Head',
   'Area Sales Manager',
+  'ASM',
   'Sales Manager',
   'Agent',
+  'Customer',
   'Claims Manager',
-  'Claim Processor',
-  'Field Executive',
-  'IT Super User',
   'Administrator',
 ];
 

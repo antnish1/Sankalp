@@ -1,10 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { Button, LoadingState, Message } from '@/components/ui';
+import { Button, EmptyState, LoadingState, Message, Screen } from '@/components/ui';
 import { getCurrentSession, getProfile, isValidProfile } from '@/lib/auth';
 import { canManageUsers, roleLabels } from '@/lib/roles';
 import { supabase } from '@/lib/supabase';
@@ -42,34 +41,24 @@ export default function ItOrganizationScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <Screen title="Organization Hierarchy">
         <LoadingState label="Loading hierarchy" />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.headerIcon}>
-            <MaterialCommunityIcons name="family-tree" size={24} color="#18A058" />
-          </View>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>Organization Hierarchy</Text>
-            <Text style={styles.subtitle}>Reporting managers and team structure</Text>
-          </View>
-        </View>
-        {message ? <Message type="error">{message}</Message> : null}
-        {tree.length ? tree.map((node) => <NodeCard key={node.id} node={node} depth={0} />) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No profiles found</Text>
-            <Text style={styles.emptyText}>Create users to start building the hierarchy.</Text>
-          </View>
-        )}
-        <Button label="Back to control center" variant="secondary" onPress={() => router.replace('/it/dashboard')} />
-      </ScrollView>
-    </SafeAreaView>
+    <Screen title="Organization Hierarchy" subtitle="Reporting managers and team structure">
+      {message ? <Message type="error">{message}</Message> : null}
+      <View style={styles.sectionBadge}>
+        <MaterialCommunityIcons name="family-tree" size={22} color="#18A058" />
+        <Text style={styles.sectionBadgeText}>Live reporting map</Text>
+      </View>
+      {tree.length ? tree.map((node) => <NodeCard key={node.id} node={node} depth={0} />) : (
+        <EmptyState title="No profiles found" body="Create users to start building the hierarchy." />
+      )}
+      <Button label="Back to control center" variant="secondary" onPress={() => router.replace('/it/dashboard')} />
+    </Screen>
   );
 }
 
@@ -106,14 +95,8 @@ function NodeCard({ node, depth }: { node: OrgNode; depth: number }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#EEF2F6' },
-  screen: { flex: 1, backgroundColor: '#EEF2F6' },
-  content: { padding: 16, paddingBottom: 28 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  headerIcon: { width: 48, height: 48, borderRadius: 18, backgroundColor: '#EAF8F0', alignItems: 'center', justifyContent: 'center' },
-  headerCopy: { flex: 1 },
-  title: { color: '#0B1F3A', fontSize: 24, fontWeight: '900' },
-  subtitle: { color: '#667085', fontSize: 13, marginTop: 3 },
+  sectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#D8DEE8', padding: 13, marginBottom: 14 },
+  sectionBadgeText: { color: '#0B1F3A', fontSize: 15, fontWeight: '900' },
   nodeCard: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 13, marginBottom: 10, borderWidth: 1, borderColor: '#D8DEE8', shadowColor: '#0B1F3A', shadowOpacity: 0.05, shadowRadius: 10, elevation: 1 },
   nodeTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusDot: { width: 11, height: 11, borderRadius: 6 },
@@ -126,7 +109,4 @@ const styles = StyleSheet.create({
   activeText: { color: '#067647' },
   inactiveText: { color: '#B54708' },
   children: { marginTop: 10 },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 22, padding: 16, borderWidth: 1, borderColor: '#D8DEE8', marginBottom: 16 },
-  emptyTitle: { color: '#0B1F3A', fontSize: 17, fontWeight: '900' },
-  emptyText: { color: '#667085', fontSize: 13, marginTop: 5 },
 });

@@ -27,10 +27,10 @@ export default function IndexScreen() {
     void load();
   }, [router]);
 
-  if (loading) return <Screen title="Welcome"><LoadingState label="Opening your account" /></Screen>;
+  if (loading) return <Screen title="InsureIT"><LoadingState label="Opening your account" /></Screen>;
 
   return (
-    <Screen title="Welcome" subtitle="Manage your policy support and claim journey from your phone.">
+    <Screen title="InsureIT" subtitle="Policy support and claim access.">
       {error ? <Message type="error">{error}</Message> : null}
       <Button label="Sign in" onPress={() => router.replace('/login')} />
     </Screen>

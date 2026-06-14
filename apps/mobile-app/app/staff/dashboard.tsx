@@ -30,21 +30,21 @@ export default function StaffDashboardScreen() {
     void load();
   }, [router]);
 
-  if (loading) return <Screen title="Staff Dashboard" showLogout><LoadingState /></Screen>;
+  if (loading) return <Screen title="Operations Desk" showLogout><LoadingState label="Opening operations desk" /></Screen>;
 
   return (
-    <Screen title="Staff Dashboard" subtitle={`Welcome${profile?.full_name ? `, ${profile.full_name}` : ''}.`} showLogout>
+    <Screen title="Operations Desk" subtitle={profile?.full_name ? profile.full_name : undefined} showLogout>
       <Card>
         <Row label="Signed in role" value={profile?.role} />
         <Row label="Open claim records" value={counts.claims} />
         <Row label="Follow-up tasks" value={counts.tasks} />
         <Row label="Documents for review" value={counts.documents} />
       </Card>
-      <NavLink href="/staff/claims" label="Claims List" />
-      <NavLink href="/staff/documents" label="Document Review" />
-      <NavLink href="/staff/tasks" label="Follow-up Tasks" />
-      <NavLink href="/staff/customers" label="Customer Search" />
-      <NavLink href="/staff/vehicles" label="Vehicle Search" />
+      <NavLink href="/staff/claims" label="Claims" />
+      <NavLink href="/staff/documents" label="Documents" />
+      <NavLink href="/staff/tasks" label="Follow-ups" />
+      <NavLink href="/staff/customers" label="Customers" />
+      <NavLink href="/staff/vehicles" label="Vehicles" />
     </Screen>
   );
 }

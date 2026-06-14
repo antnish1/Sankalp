@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Link, LinkProps, useRouter } from 'expo-router';
 import { PropsWithChildren } from 'react';
 import { ActivityIndicator, Pressable, PressableProps, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
@@ -8,7 +9,7 @@ export const colors = {
   navy: '#0B1F3A',
   navySoft: '#173B68',
   green: '#18A058',
-  grey: '#6B7280',
+  grey: '#667085',
   lightGrey: '#EEF2F6',
   border: '#D8DEE8',
   white: '#FFFFFF',
@@ -18,14 +19,17 @@ export const colors = {
 export function Screen({ title, subtitle, children, showLogout = false }: PropsWithChildren<{ title: string; subtitle?: string; showLogout?: boolean }>) {
   const router = useRouter();
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} keyboardShouldPersistTaps="handled">
-      <View style={styles.header}>
-        <View style={styles.brandBadge}><Text style={styles.brandBadgeText}>I</Text></View>
-        <View style={styles.headerText}>
-          <Text style={styles.brand}>InsureIt</Text>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <View style={styles.brandRow}>
+        <View style={styles.brandBadge}>
+          <MaterialCommunityIcons name="shield-check" size={21} color={colors.navy} />
         </View>
+        <Text style={styles.brand}>InsureIT</Text>
+      </View>
+      <View style={styles.header}>
+        <View style={styles.headerGlow} />
+        <Text style={styles.title}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
       {showLogout ? <Button label="Sign out" variant="secondary" onPress={() => void signOut(router)} /> : null}
       {children}
@@ -47,65 +51,109 @@ export function Button({ label, onPress, variant = 'primary', disabled = false }
   );
 }
 
-export function TextField({ label, ...props }: TextInputProps & { label: string }) {
+export function TextField({ label, style, editable, ...props }: TextInputProps & { label: string }) {
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor="#8A94A6" style={styles.input} {...props} />
+      <View style={[styles.inputShell, editable === false && styles.disabledInputShell]}>
+        <TextInput placeholderTextColor="#8A94A6" editable={editable} style={[styles.input, style]} {...props} />
+      </View>
     </View>
   );
 }
 
 export function Message({ type = 'info', children }: PropsWithChildren<{ type?: 'info' | 'error' | 'success' }>) {
-  return <Text style={[styles.message, type === 'error' && styles.errorMessage, type === 'success' && styles.successMessage]}>{children}</Text>;
+  const icon = type === 'error' ? 'alert-circle-outline' : type === 'success' ? 'check-circle-outline' : 'information-outline';
+  return (
+    <View style={[styles.message, type === 'error' && styles.errorMessage, type === 'success' && styles.successMessage]}>
+      <View style={styles.messageIcon}>
+        <MaterialCommunityIcons name={icon} size={18} color={type === 'error' ? colors.danger : type === 'success' ? '#067647' : '#0B63CE'} />
+      </View>
+      <Text style={[styles.messageText, type === 'error' && styles.errorMessageText, type === 'success' && styles.successMessageText]}>{children}</Text>
+    </View>
+  );
 }
 
 export function LoadingState({ label = 'Loading' }: { label?: string }) {
-  return <View style={styles.center}><ActivityIndicator color={colors.green} /><Text style={styles.muted}>{label}</Text></View>;
+  return (
+    <View style={styles.center}>
+      <View style={styles.loadingBadge}>
+        <ActivityIndicator color={colors.green} />
+      </View>
+      <Text style={styles.loadingLabel}>{label}</Text>
+    </View>
+  );
 }
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
-  return <Card><Text style={styles.cardTitle}>{title}</Text><Text style={styles.muted}>{body}</Text></Card>;
+  return (
+    <Card>
+      <View style={styles.emptyIcon}>
+        <MaterialCommunityIcons name="file-search-outline" size={22} color={colors.green} />
+      </View>
+      <Text style={styles.cardTitle}>{title}</Text>
+      <Text style={styles.muted}>{body}</Text>
+    </Card>
+  );
 }
 
 export function Row({ label, value }: { label: string; value?: string | number | null }) {
-  return <View style={styles.row}><Text style={styles.rowLabel}>{label}</Text><Text style={styles.rowValue}>{value ?? '—'}</Text></View>;
+  return <View style={styles.row}><Text style={styles.rowLabel}>{label}</Text><Text style={styles.rowValue}>{value ?? '-'}</Text></View>;
 }
 
 export function NavLink({ href, label }: { href: LinkProps['href']; label: string }) {
-  return <Link href={href} asChild><Pressable style={styles.navLink}><Text style={styles.navLinkText}>{label}</Text><Text style={styles.navChevron}>›</Text></Pressable></Link>;
+  return (
+    <Link href={href} asChild>
+      <Pressable style={styles.navLink}>
+        <View style={styles.navIcon}>
+          <MaterialCommunityIcons name="arrow-top-right" size={18} color={colors.green} />
+        </View>
+        <Text style={styles.navLinkText}>{label}</Text>
+        <MaterialCommunityIcons name="chevron-right" size={23} color="#667085" />
+      </Pressable>
+    </Link>
+  );
 }
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.lightGrey },
-  screenContent: { padding: 20, paddingBottom: 40 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 18, marginTop: 10 },
-  brandBadge: { width: 52, height: 52, borderRadius: 16, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  brandBadgeText: { color: colors.white, fontSize: 26, fontWeight: '800' },
-  headerText: { flex: 1 },
-  brand: { color: colors.green, fontSize: 14, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
-  title: { color: colors.navy, fontSize: 28, fontWeight: '800', marginTop: 2 },
-  subtitle: { color: colors.grey, fontSize: 15, lineHeight: 22, marginTop: 4 },
-  card: { backgroundColor: colors.white, borderRadius: 18, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: colors.border },
-  cardTitle: { color: colors.navy, fontSize: 18, fontWeight: '800', marginBottom: 8 },
-  button: { minHeight: 50, borderRadius: 14, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center', marginVertical: 8, paddingHorizontal: 16 },
-  secondaryButton: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.navy },
+  screenContent: { padding: 16, paddingTop: 18, paddingBottom: 40 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  brandBadge: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  brand: { flex: 1, color: colors.navy, fontSize: 22, fontWeight: '900' },
+  header: { minHeight: 128, borderRadius: 26, backgroundColor: colors.navy, padding: 18, marginBottom: 16, overflow: 'hidden', shadowColor: colors.navy, shadowOpacity: 0.16, shadowRadius: 16, elevation: 3 },
+  headerGlow: { position: 'absolute', width: 154, height: 154, borderRadius: 77, right: -44, top: -58, backgroundColor: 'rgba(24,160,88,0.28)' },
+  title: { color: colors.white, fontSize: 28, fontWeight: '900', lineHeight: 34 },
+  subtitle: { color: '#C7D7EA', fontSize: 14, lineHeight: 21, marginTop: 8 },
+  card: { backgroundColor: colors.white, borderRadius: 24, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: colors.border, shadowColor: colors.navy, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2 },
+  cardTitle: { color: colors.navy, fontSize: 18, fontWeight: '900', marginBottom: 8 },
+  button: { minHeight: 52, borderRadius: 18, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center', marginVertical: 8, paddingHorizontal: 16, shadowColor: colors.green, shadowOpacity: 0.16, shadowRadius: 12, elevation: 2 },
+  secondaryButton: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, shadowOpacity: 0 },
   dangerButton: { backgroundColor: colors.danger },
   disabledButton: { opacity: 0.55 },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '800' },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '900' },
   secondaryButtonText: { color: colors.navy },
   fieldWrap: { marginBottom: 12 },
-  label: { color: colors.navy, fontSize: 14, fontWeight: '700', marginBottom: 6 },
-  input: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 14, minHeight: 50, color: colors.navy, fontSize: 16 },
-  message: { color: colors.navy, backgroundColor: '#E8F1FB', borderRadius: 12, padding: 12, marginVertical: 8, lineHeight: 20 },
-  errorMessage: { color: colors.danger, backgroundColor: '#FEEFEF' },
-  successMessage: { color: '#067647', backgroundColor: '#EAF8F0' },
-  center: { alignItems: 'center', justifyContent: 'center', padding: 24 },
+  label: { color: colors.navy, fontSize: 13, fontWeight: '900', marginBottom: 7 },
+  inputShell: { minHeight: 52, borderRadius: 18, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, justifyContent: 'center' },
+  disabledInputShell: { opacity: 0.65 },
+  input: { paddingHorizontal: 14, minHeight: 50, color: colors.navy, fontSize: 16, fontWeight: '600' },
+  message: { backgroundColor: '#E8F1FB', borderRadius: 18, padding: 12, marginVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#B9D5FF' },
+  messageIcon: { width: 34, height: 34, borderRadius: 13, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  messageText: { color: colors.navy, flex: 1, fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  errorMessage: { backgroundColor: '#FEEFEF', borderColor: '#FECACA' },
+  successMessage: { backgroundColor: '#EAF8F0', borderColor: '#BFEBD0' },
+  errorMessageText: { color: colors.danger },
+  successMessageText: { color: '#067647' },
+  center: { alignItems: 'center', justifyContent: 'center', padding: 26 },
+  loadingBadge: { width: 58, height: 58, borderRadius: 21, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 12, shadowColor: colors.navy, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2 },
+  loadingLabel: { color: colors.navy, fontSize: 15, fontWeight: '900', lineHeight: 22 },
   muted: { color: colors.grey, fontSize: 15, lineHeight: 22 },
-  row: { borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },
+  emptyIcon: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#EAF8F0', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  row: { borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 11 },
   rowLabel: { color: colors.grey, fontSize: 13, fontWeight: '700', marginBottom: 3 },
-  rowValue: { color: colors.navy, fontSize: 16, fontWeight: '600' },
-  navLink: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  navLinkText: { color: colors.navy, fontSize: 16, fontWeight: '800' },
-  navChevron: { color: colors.green, fontSize: 26, fontWeight: '800' },
+  rowValue: { color: colors.navy, fontSize: 16, fontWeight: '800' },
+  navLink: { backgroundColor: colors.white, borderRadius: 22, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 12, shadowColor: colors.navy, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  navIcon: { width: 40, height: 40, borderRadius: 15, backgroundColor: '#EAF8F0', alignItems: 'center', justifyContent: 'center' },
+  navLinkText: { color: colors.navy, fontSize: 16, fontWeight: '900', flex: 1 },
 });

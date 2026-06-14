@@ -251,7 +251,14 @@ export default function ItUsersScreen() {
           options={employeeRoleOptions}
           openSelect={openSelect}
           setOpenSelect={setOpenSelect}
-          onChange={(value) => setForm((current) => ({ ...current, role: value as AppRole }))}
+          onChange={(value) => {
+            const nextRole = value as AppRole;
+            setForm((current) => ({
+              ...current,
+              role: nextRole,
+              designation: shouldSyncDesignation(current.role, current.designation) ? roleLabels[nextRole] : current.designation,
+            }));
+          }}
         />
         <OptionSelect
           id="reporting_manager"
@@ -347,6 +354,10 @@ function nullable(value: string) {
 function managerName(managerId: string | null, profiles: EditableProfile[]) {
   if (!managerId) return 'None';
   return profiles.find((item) => item.id === managerId)?.full_name ?? 'Linked manager';
+}
+
+function shouldSyncDesignation(role: AppRole, designation: string) {
+  return !designation || designation === roleLabels[role];
 }
 
 function SavingPanel({ label }: { label: string }) {
